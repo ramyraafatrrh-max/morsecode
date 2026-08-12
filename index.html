@@ -91,13 +91,18 @@ body::after{
 .hub{flex:1;overflow:auto;padding:24px 18px 50px;display:flex;flex-direction:column;}
 .hub h1{color:var(--cyan);letter-spacing:4px;font-size:22px;margin:4px 0 2px;text-align:center;text-shadow:0 0 14px rgba(34,224,255,.5);}
 .hub .lead{color:#bfe6f2;font-size:13px;letter-spacing:1px;text-align:center;margin-bottom:20px;}
-.helpergrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.helperbtn{position:relative;padding:26px 12px;border-radius:16px;border:1px solid #14506a;overflow:hidden;
-  background:linear-gradient(180deg,#082a38,#04151d);color:#eafcff;font-weight:bold;letter-spacing:1px;font-size:16px;
-  text-transform:uppercase;box-shadow:0 6px 0 #021018;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
-.helperbtn:active{transform:translateY(3px);box-shadow:0 3px 0 #021018;}
-.helperbtn .ico{font-size:34px;filter:drop-shadow(0 0 10px rgba(34,224,255,.7));}
-.helperbtn .sig{position:absolute;top:10px;right:12px;font-size:11px;letter-spacing:2px;color:var(--green);opacity:.8;}
+.helpergrid{display:flex;flex-direction:column;gap:16px;}
+.helpercard{position:relative;display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;border:1px solid #14506a;overflow:hidden;
+  background:linear-gradient(180deg,#082a38,#04151d);box-shadow:0 5px 0 #021018;}
+.helperbtn{flex:1;min-width:0;position:relative;padding:20px 12px;border-radius:12px;border:1px solid #14506a;overflow:hidden;
+  background:linear-gradient(180deg,#0a3446,#051a24);color:#eafcff;font-weight:bold;letter-spacing:1px;font-size:16px;
+  text-transform:uppercase;box-shadow:0 4px 0 #021018;min-height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+.helperbtn:active{transform:translateY(2px);box-shadow:0 2px 0 #021018;}
+.helperbtn .ico{font-size:30px;filter:drop-shadow(0 0 10px rgba(34,224,255,.7));}
+.helperbtn .sig{position:absolute;top:8px;right:10px;font-size:11px;letter-spacing:2px;color:var(--green);opacity:.8;}
+.helperqr{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.helperqr .qrbox{width:92px;height:92px;background:#fff;border-radius:8px;padding:5px;}
+.helperqr .scanlbl{font-size:10px;letter-spacing:2px;color:#9fc6d4;text-transform:uppercase;}
 .hub .backbtn{align-self:flex-start;background:#082430;border:1px solid #14506a;color:#eafcff;border-radius:8px;padding:8px 14px;font-size:13px;letter-spacing:2px;margin-bottom:8px;}
 .hub .foot{color:#5a7a86;font-size:11px;letter-spacing:2px;text-align:center;margin-top:18px;}
 
@@ -334,17 +339,23 @@ function renderHub(t){
   let cells="";
   HELPERS.forEach(h=>{
     cells+=`
-    <button class="helperbtn" data-n="${h.n}">
-      <span class="sig">• — •</span>
-      <span class="ico">🎧</span>
-      <span>${esc(h.label)}</span>
-    </button>`;
+    <div class="helpercard">
+      <button class="helperbtn" data-n="${h.n}">
+        <span class="sig">• — •</span>
+        <span class="ico">🎧</span>
+        <span>${esc(h.label)}</span>
+      </button>
+      <div class="helperqr">
+        <div class="qrbox" id="hqr_${h.n}"></div>
+        <div class="scanlbl">Scan for<br>other device</div>
+      </div>
+    </div>`;
   });
   app.innerHTML=`
   <div class="hub">
     <button class="backbtn" id="back">‹ BACK</button>
     <h1>INCOMING SIGNALS</h1>
-    <div class="lead">Tap a helper to listen. Decode the Morse, find the code, save the agent.</div>
+    <div class="lead">Tap a helper to listen here, or scan its QR to open it on another phone.</div>
     <div class="helpergrid">${cells}</div>
     <div class="foot">4 transmissions · listen carefully · repeat as needed</div>
   </div>`;
@@ -352,6 +363,14 @@ function renderHub(t){
   app.querySelectorAll(".helperbtn").forEach(b=>{
     b.onclick=()=>{ const n=b.getAttribute("data-n"); openPlayerInline(n, t); };
   });
+  // build a QR per helper → direct link that opens that Morse page on any device
+  if(window.QRCode){
+    HELPERS.forEach(h=>{
+      const url=`${base}?role=helper&n=${h.n}`;
+      const box=document.getElementById(`hqr_${h.n}`);
+      try{ new QRCode(box,{text:url,width:92,height:92,colorDark:"#000",colorLight:"#fff",correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
+    });
+  }
 }
 
 /* open the morse player as an in-app screen (players never leave the flow) */
