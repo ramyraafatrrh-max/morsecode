@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#02060a" />
+<title>SIGNAL: DECODE</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+:root{
+  --cyan:#22e0ff;--green:#39ff14;--amber:#ffb020;--red:#ff3344;--ink:#02060a;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;}
+body{
+  background:radial-gradient(120% 80% at 50% -10%, #0a1a24 0%, #05121a 45%, #01060a 100%);
+  color:#dfeef5;font-family:"Courier New",ui-monospace,Menlo,Consolas,monospace;
+  overflow:hidden;-webkit-user-select:none;user-select:none;min-height:100dvh;
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.22) 3px 4px),
+    radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,.8) 100%);
+  mix-blend-mode:multiply;opacity:.8;
+}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;}
+.center{display:flex;align-items:center;justify-content:center;text-align:center;}
+.hidden{display:none !important;}
+.tiny{font-size:12px;opacity:.6;letter-spacing:2px;}
+
+@keyframes flicker{0%,19%,21%,55%,57%,100%{opacity:1}20%,56%{opacity:.4}}
+@keyframes shake{10%,90%{transform:translate(-1px,0)}20%,80%{transform:translate(2px,-1px)}30%,50%,70%{transform:translate(-3px,1px)}40%,60%{transform:translate(3px,1px)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes sweep{0%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+@keyframes ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.2);opacity:0}}
+.shakeit{animation:shake .5s;}
+
+/* ===== ENTRY GATE ===== */
+.gate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 22px;text-align:center;}
+.gate .glyph{font-size:54px;filter:drop-shadow(0 0 16px rgba(34,224,255,.5));margin-bottom:8px;animation:flicker 4s infinite;}
+.gate h1{color:var(--cyan);letter-spacing:5px;font-size:22px;margin:2px 0 22px;text-shadow:0 0 16px rgba(34,224,255,.5);}
+.gate .riddle{color:#bfe6f2;font-size:16px;line-height:1.7;letter-spacing:1px;max-width:360px;margin-bottom:22px;font-style:italic;text-shadow:0 0 8px #000;}
+.gate .gatein{width:100%;max-width:320px;background:#03121a;border:2px solid #14506a;border-radius:12px;color:#fff;
+  text-align:center;font-size:24px;letter-spacing:8px;padding:14px;font-family:inherit;outline:none;}
+.gate .gatein:focus{border-color:var(--cyan);box-shadow:0 0 16px rgba(34,224,255,.5);}
+.gate .gateerr{color:#ff6b6b;font-size:13px;letter-spacing:1px;min-height:18px;margin-top:12px;}
+.gate .gatebtn{width:100%;max-width:320px;margin-top:8px;padding:15px;border-radius:12px;border:1px solid #14506a;
+  background:linear-gradient(180deg,#0b7fa0,#075063);color:#eafcff;font-weight:bold;letter-spacing:3px;font-size:15px;text-transform:uppercase;box-shadow:0 5px 0 #032430;}
+.gate .gatebtn:active{transform:translateY(2px);box-shadow:0 3px 0 #032430;}
+
+/* ===== TEAM SELECT ===== */
+.launch{flex:1;overflow:auto;padding:26px 18px 50px;display:flex;flex-direction:column;}
+.launch h1{color:var(--cyan);letter-spacing:4px;font-size:24px;margin:6px 0 2px;text-align:center;text-shadow:0 0 16px rgba(34,224,255,.5);}
+.launch .lead{color:#bfe6f2;font-size:13px;letter-spacing:1px;line-height:1.5;text-align:center;margin-bottom:8px;}
+.teamgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px;}
+.teambtn{position:relative;padding:24px 12px;border-radius:16px;border:1px solid #14506a;
+  background:linear-gradient(180deg,#082430,#04141c);color:#eafcff;font-weight:bold;letter-spacing:1px;font-size:15px;
+  text-transform:uppercase;box-shadow:0 6px 0 #021018;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+.teambtn:active{transform:translateY(3px);box-shadow:0 3px 0 #021018;}
+.teambtn .ico{font-size:30px;filter:drop-shadow(0 0 8px rgba(34,224,255,.6));}
+.launch .foot{color:#5a7a86;font-size:11px;letter-spacing:2px;text-align:center;margin-top:auto;padding-top:18px;}
+
+/* passcode overlay */
+.passwrap{position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:rgba(1,6,10,.86);backdrop-filter:blur(3px);}
+.passcard{width:100%;max-width:340px;background:linear-gradient(180deg,#08202b,#04131b);border:1px solid #14506a;border-radius:18px;padding:24px 20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.7);}
+.passtitle{color:var(--amber);font-size:19px;letter-spacing:3px;text-transform:uppercase;font-weight:bold;}
+.passsub{color:#bfe6f2;font-size:13px;letter-spacing:2px;margin:6px 0 16px;}
+.passin{width:100%;background:#03121a;border:2px solid #14506a;border-radius:10px;color:#fff;text-align:center;
+  font-size:28px;letter-spacing:10px;padding:12px;font-family:inherit;outline:none;}
+.passin:focus{border-color:var(--cyan);box-shadow:0 0 14px rgba(34,224,255,.5);}
+.passerr{color:#ff6b6b;font-size:13px;letter-spacing:1px;min-height:18px;margin-top:10px;}
+.passbtns{display:flex;gap:10px;margin-top:12px;}
+.passbtn{flex:1;padding:13px;border-radius:10px;font-weight:bold;letter-spacing:2px;font-size:14px;border:1px solid #14506a;text-transform:uppercase;}
+.passbtn.go{background:linear-gradient(180deg,#0b7fa0,#075063);color:#eafcff;}
+.passbtn.ghost{background:transparent;color:#bfe6f2;}
+.passbtn:active{transform:translateY(1px);}
+
+/* ===== GREETING ===== */
+.greet{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:34px 24px;text-align:center;}
+.greet .badge2{font-size:48px;filter:drop-shadow(0 0 18px rgba(57,255,20,.5));margin-bottom:14px;animation:flicker 5s infinite;}
+.greet .team{color:var(--amber);letter-spacing:4px;font-size:14px;text-transform:uppercase;margin-bottom:14px;}
+.greet .msg{color:#eafcff;font-size:20px;line-height:1.7;letter-spacing:1px;max-width:420px;margin-bottom:30px;text-shadow:0 0 12px rgba(34,224,255,.35);}
+.greet .go{width:100%;max-width:320px;padding:16px;border-radius:12px;border:1px solid #1a7a3a;
+  background:linear-gradient(180deg,#1a9c3a,#0c5f24);color:#eafff0;font-weight:bold;letter-spacing:3px;font-size:16px;text-transform:uppercase;box-shadow:0 6px 0 #04250f;}
+.greet .go:active{transform:translateY(2px);box-shadow:0 3px 0 #04250f;}
+
+/* ===== HELPERS HUB ===== */
+.hub{flex:1;overflow:auto;padding:24px 18px 50px;display:flex;flex-direction:column;}
+.hub h1{color:var(--cyan);letter-spacing:4px;font-size:22px;margin:4px 0 2px;text-align:center;text-shadow:0 0 14px rgba(34,224,255,.5);}
+.hub .lead{color:#bfe6f2;font-size:13px;letter-spacing:1px;text-align:center;margin-bottom:20px;}
+.helpergrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.helperbtn{position:relative;padding:26px 12px;border-radius:16px;border:1px solid #14506a;overflow:hidden;
+  background:linear-gradient(180deg,#082a38,#04151d);color:#eafcff;font-weight:bold;letter-spacing:1px;font-size:16px;
+  text-transform:uppercase;box-shadow:0 6px 0 #021018;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
+.helperbtn:active{transform:translateY(3px);box-shadow:0 3px 0 #021018;}
+.helperbtn .ico{font-size:34px;filter:drop-shadow(0 0 10px rgba(34,224,255,.7));}
+.helperbtn .sig{position:absolute;top:10px;right:12px;font-size:11px;letter-spacing:2px;color:var(--green);opacity:.8;}
+.hub .backbtn{align-self:flex-start;background:#082430;border:1px solid #14506a;color:#eafcff;border-radius:8px;padding:8px 14px;font-size:13px;letter-spacing:2px;margin-bottom:8px;}
+.hub .foot{color:#5a7a86;font-size:11px;letter-spacing:2px;text-align:center;margin-top:18px;}
+
+/* ===== PLAYER (morse) ===== */
+.player{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 22px;text-align:center;overflow:hidden;}
+.player .top{position:absolute;top:16px;left:0;right:0;display:flex;justify-content:space-between;padding:0 16px;}
+.pill{font-size:11px;letter-spacing:3px;color:var(--cyan);border:1px solid #14506a;padding:5px 10px;border-radius:20px;background:rgba(3,18,26,.6);text-transform:uppercase;}
+.player .title{color:var(--cyan);font-size:26px;letter-spacing:4px;margin-bottom:6px;text-shadow:0 0 16px rgba(34,224,255,.6);}
+.player .sub{color:#9fc6d4;font-size:13px;letter-spacing:2px;margin-bottom:34px;}
+.disc{position:relative;width:min(66vw,260px);height:min(66vw,260px);border-radius:50%;
+  background:radial-gradient(circle at 50% 40%, #0c3446, #061a24 70%, #03121a);
+  border:2px solid #14506a;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 40px rgba(34,224,255,.15), inset 0 0 40px rgba(0,0,0,.6);cursor:pointer;}
+.disc .core{width:34%;height:34%;border-radius:50%;background:radial-gradient(circle,#0b7fa0,#053241);
+  display:flex;align-items:center;justify-content:center;font-size:40px;color:#eafcff;
+  box-shadow:0 0 22px rgba(34,224,255,.5);transition:transform .1s;}
+.disc.playing .core{transform:scale(1.06);}
+.disc .ripple{position:absolute;width:44%;height:44%;border-radius:50%;border:2px solid rgba(34,224,255,.5);pointer-events:none;}
+.disc.playing .ripple{animation:ring 1.2s ease-out infinite;}
+.disc.playing .ripple.r2{animation-delay:.4s;}
+.disc.playing .ripple.r3{animation-delay:.8s;}
+.lamp{margin-top:30px;width:26px;height:26px;border-radius:50%;background:#0a2029;border:1px solid #14506a;box-shadow:inset 0 0 8px #000;}
+.lamp.on{background:var(--green);box-shadow:0 0 22px var(--green),0 0 40px rgba(57,255,20,.5);}
+.player .hint{margin-top:26px;color:#9fc6d4;font-size:13px;letter-spacing:3px;}
+.player .hint b{color:var(--cyan);}
+.wave{position:absolute;bottom:34px;left:0;right:0;height:60px;display:flex;align-items:center;justify-content:center;gap:4px;opacity:.5;}
+.wave i{width:4px;height:8px;background:var(--cyan);border-radius:2px;}
+.player .replay{margin-top:22px;background:#082430;border:1px solid #14506a;color:#eafcff;border-radius:10px;padding:11px 18px;font-size:13px;letter-spacing:2px;text-transform:uppercase;}
+.player .loaderr{margin-top:16px;color:#ffb020;font-size:12px;letter-spacing:1px;max-width:340px;}
+
+/* ===== CONSOLE (links + QR) ===== */
+.home{flex:1;overflow:auto;padding:18px 16px 50px;}
+.home .backbtn{background:#082430;border:1px solid #14506a;color:#eafcff;border-radius:8px;padding:8px 14px;font-size:13px;letter-spacing:2px;margin-bottom:12px;}
+.home h1{color:var(--amber);letter-spacing:3px;font-size:22px;margin:2px 0;text-shadow:0 0 14px rgba(255,176,32,.4);}
+.home .lead{color:#bfe6f2;font-size:13px;letter-spacing:1px;line-height:1.5;margin:6px 0 14px;}
+.warnbox{background:#0a2233;border:1px solid #14506a;color:#bfe6f2;padding:12px;border-radius:10px;font-size:13px;line-height:1.5;margin-bottom:16px;}
+.linkrow{display:flex;align-items:center;gap:12px;padding:12px 6px;border-bottom:1px dashed #123543;}
+.linkrow:last-child{border-bottom:none;}
+.qr{width:80px;height:80px;background:#fff;border-radius:6px;padding:4px;flex:0 0 auto;}
+.linkmeta{flex:1;min-width:0;}
+.linkmeta .role{font-weight:bold;letter-spacing:2px;font-size:14px;}
+.linkmeta .role .dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:middle;box-shadow:0 0 8px currentColor;background:var(--cyan);color:var(--cyan);}
+.linkmeta a{display:block;color:#7fd0ff;font-size:11px;word-break:break-all;margin-top:3px;text-decoration:none;}
+.copybtn{background:#082430;border:1px solid #14506a;color:#eafcff;border-radius:8px;padding:9px 12px;font-size:12px;flex:0 0 auto;letter-spacing:1px;}
+.copybtn:active{transform:translateY(1px);}
+.home .foot{color:#5a7a86;font-size:11px;letter-spacing:2px;text-align:center;margin-top:12px;}
+</style>
+</head>
+<body>
+<div id="app" class="center">Loading…</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, doc, collection, getDoc, getDocs }
+  from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+/* ============================================================
+   1)  >>> PASTE YOUR "Hostage Game" FIREBASE CONFIG HERE <<<
+   ============================================================ */
+const firebaseConfig = {
+    apiKey: "AIzaSyAIZuezO47a8PcSkbhdqQRF9LfJnsP-SVg",
+    authDomain: "hostage-game-dda89.firebaseapp.com",
+    databaseURL: "https://hostage-game-dda89-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "hostage-game-dda89",
+    storageBucket: "hostage-game-dda89.firebasestorage.app",
+    messagingSenderId: "968050038111",
+    appId: "1:968050038111:web:f666ec6810cbc189fe52ea"
+};
+/* ============================================================
+   2)  Team collection name (same DB as your other game)
+   ============================================================ */
+const TEAMS_COLLECTION = "teams";
+
+/* ============================================================
+   3)  ENTRY GATE code for THIS game
+   ============================================================ */
+const ENTRY_CODE = "793459";
+
+/* ============================================================
+   4)  The 4 Morse audio files (uploaded next to index.html on GitHub)
+       label   = what players see
+       file    = the exact filename in your repo
+   ============================================================ */
+const HELPERS = [
+  { n:1, label:"Helper 1", file:"1.8.wav" },
+  { n:2, label:"Helper 2", file:"2.5.wav" },
+  { n:3, label:"Helper 3", file:"3.43.wav" },
+  { n:4, label:"Helper 4", file:"4.2.wav" },
+];
+/* ============================================================ */
+
+const CONFIG_OK = firebaseConfig.apiKey && !String(firebaseConfig.apiKey).includes("PASTE");
+let db = null;
+if (CONFIG_OK) { db = getFirestore(initializeApp(firebaseConfig)); }
+
+const params = new URLSearchParams(location.search);
+const role   = (params.get("role") || "").toLowerCase();
+const helperN= params.get("n") || "";
+const app = document.getElementById("app");
+
+/* ---------- helpers ---------- */
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function needConfig(){ app.innerHTML =
+  `<div style="padding:26px;text-align:center;max-width:420px">
+     <div style="font-size:44px">📡</div>
+     <h2 style="color:#22e0ff;letter-spacing:3px">CONFIG REQUIRED</h2>
+     <p style="color:#bfe6f2;line-height:1.6">Open <b>index.html</b> and paste your <b>Hostage Game</b> Firebase config into the
+     <code>firebaseConfig</code> block near the top of the &lt;script&gt; tag, then re-upload. See the README.</p>
+   </div>`; }
+
+async function loadTeams(){
+  const qs = await getDocs(collection(db, TEAMS_COLLECTION));
+  const out = [];
+  qs.forEach(d=>{
+    const t = d.data() || {};
+    const pass = t.passcode ?? t.password ?? t.accessCode ?? t.code ?? t.pin ?? "";
+    const name = t.name ?? t.teamName ?? t.title ?? d.id;
+    out.push({ key:d.id, name:String(name), passcode:String(pass), order:(t.order ?? null) });
+  });
+  out.sort((a,b)=>{ if(a.order!=null && b.order!=null) return a.order-b.order; return a.key.localeCompare(b.key); });
+  return out;
+}
+
+/* ============================================================ ROUTER ============================================================ */
+if (role === "helper")           { renderPlayer(); }              // morse page (no login needed on the QR itself)
+else if (!role || role==="home") { CONFIG_OK ? renderGate() : needConfig(); }
+else if (!CONFIG_OK)             { needConfig(); }
+else                             { renderGate(); }
+
+/* ============================================================ ENTRY GATE ============================================================ */
+function renderGate(){
+  if (sessionStorage.getItem("gate_ok") === "1") { renderHome(); return; }
+  app.className="";
+  app.innerHTML = `
+  <div class="gate">
+    <div class="glyph">📡</div>
+    <h1>SIGNAL: DECODE</h1>
+    <div class="riddle">Enter the access code to open the channel.</div>
+    <input id="gatein" class="gatein" inputmode="numeric" autocomplete="off" placeholder="••••••" />
+    <div id="gateerr" class="gateerr"></div>
+    <button id="gatebtn" class="gatebtn">Enter</button>
+  </div>`;
+  const inp=document.getElementById("gatein"), err=document.getElementById("gateerr");
+  setTimeout(()=>inp.focus(),60);
+  const submit=()=>{
+    if(String(inp.value).trim()===ENTRY_CODE){
+      sessionStorage.setItem("gate_ok","1"); renderHome();
+    } else {
+      err.textContent="✖ Incorrect code";
+      const g=document.querySelector(".gate"); g.classList.add("shakeit"); setTimeout(()=>g.classList.remove("shakeit"),500);
+      if(navigator.vibrate) navigator.vibrate(200); inp.value=""; inp.focus();
+    }
+  };
+  document.getElementById("gatebtn").onclick=submit;
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter") submit(); });
+}
+
+/* ============================================================ TEAM SELECT ============================================================ */
+function renderHome(){
+  app.className="";
+  app.innerHTML = `
+  <div class="launch">
+    <h1>📡 SIGNAL: DECODE</h1>
+    <div class="lead">Select your team, then enter your passcode.</div>
+    <div id="teamgrid" class="teamgrid">
+      <div class="tiny" style="grid-column:1/-1;text-align:center;padding:30px">Loading teams…</div>
+    </div>
+    <div class="foot">Same team roster as your other game.</div>
+  </div>`;
+  loadTeams().then(teams=>{
+    const grid=document.getElementById("teamgrid");
+    if(!teams.length){
+      grid.innerHTML=`<div class="warnbox" style="grid-column:1/-1">No teams found in Firestore. Add a <b>${esc(TEAMS_COLLECTION)}</b> collection with <b>name</b> + <b>passcode</b> (see README).</div>`;
+      return;
+    }
+    grid.innerHTML="";
+    teams.slice(0,4).forEach(t=>{
+      const b=document.createElement("button"); b.className="teambtn";
+      b.innerHTML=`<span class="ico">🎯</span><span>${esc(t.name)}</span>`;
+      b.onclick=()=>askPasscode(t);
+      grid.appendChild(b);
+    });
+  }).catch(()=>{
+    document.getElementById("teamgrid").innerHTML=`<div class="warnbox" style="grid-column:1/-1">Couldn't read teams from Firestore. Check your config &amp; security rules (see README).</div>`;
+  });
+}
+
+function askPasscode(t){
+  const ov=document.createElement("div"); ov.className="passwrap";
+  ov.innerHTML=`
+    <div class="passcard">
+      <div class="passtitle">${esc(t.name)}</div>
+      <div class="passsub">Enter team passcode</div>
+      <input id="passin" class="passin" inputmode="numeric" autocomplete="off" placeholder="••••" />
+      <div id="passerr" class="passerr"></div>
+      <div class="passbtns">
+        <button id="passcancel" class="passbtn ghost">Cancel</button>
+        <button id="passok" class="passbtn go">Unlock</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const inp=ov.querySelector("#passin"); setTimeout(()=>inp.focus(),50);
+  const submit=()=>{
+    const ok = t.passcode!=="" && String(inp.value).trim()===String(t.passcode).trim();
+    if(ok){ ov.remove(); renderGreeting(t); }
+    else{
+      ov.querySelector("#passerr").textContent="✖ Wrong passcode — try again";
+      const card=ov.querySelector(".passcard"); card.classList.add("shakeit"); setTimeout(()=>card.classList.remove("shakeit"),500);
+      if(navigator.vibrate) navigator.vibrate(200); inp.value=""; inp.focus();
+    }
+  };
+  ov.querySelector("#passok").onclick=submit;
+  ov.querySelector("#passcancel").onclick=()=>ov.remove();
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter") submit(); });
+}
+
+/* ============================================================ GREETING ============================================================ */
+function renderGreeting(t){
+  app.className="";
+  app.innerHTML=`
+  <div class="greet">
+    <div class="badge2">🛰️</div>
+    <div class="team">▣ ${esc(t.name)}</div>
+    <div class="msg">We are here to help, decode the messages, find the code, save the agent</div>
+    <button class="go" id="proceed">Proceed ▸</button>
+  </div>`;
+  document.getElementById("proceed").onclick=()=>renderHub(t);
+}
+
+/* ============================================================ HELPERS HUB (4 links) ============================================================ */
+function renderHub(t){
+  app.className="";
+  const base=location.origin+location.pathname;
+  let cells="";
+  HELPERS.forEach(h=>{
+    cells+=`
+    <button class="helperbtn" data-n="${h.n}">
+      <span class="sig">• — •</span>
+      <span class="ico">🎧</span>
+      <span>${esc(h.label)}</span>
+    </button>`;
+  });
+  app.innerHTML=`
+  <div class="hub">
+    <button class="backbtn" id="back">‹ BACK</button>
+    <h1>INCOMING SIGNALS</h1>
+    <div class="lead">Tap a helper to listen. Decode the Morse, find the code, save the agent.</div>
+    <div class="helpergrid">${cells}</div>
+    <div class="foot">4 transmissions · listen carefully · repeat as needed</div>
+  </div>`;
+  document.getElementById("back").onclick=()=>renderGreeting(t);
+  app.querySelectorAll(".helperbtn").forEach(b=>{
+    b.onclick=()=>{ const n=b.getAttribute("data-n"); openPlayerInline(n, t); };
+  });
+}
+
+/* open the morse player as an in-app screen (players never leave the flow) */
+function openPlayerInline(n, backTeam){
+  renderPlayer(n, ()=>renderHub(backTeam));
+}
+
+/* ============================================================ MORSE PLAYER ============================================================ */
+function renderPlayer(nOverride, onBack){
+  const n = nOverride || helperN;
+  const h = HELPERS.find(x=>String(x.n)===String(n)) || HELPERS[0];
+  const base = location.origin + location.pathname.replace(/index\.html$/,"");
+  const src = base + h.file;               // e.g. .../1.8.wav
+
+  app.className="";
+  app.innerHTML=`
+  <div class="player">
+    <div class="top">
+      <span class="pill">CHANNEL ${h.n}</span>
+      <span class="pill" id="status">◍ READY</span>
+    </div>
+    <div class="title">${esc(h.label)}</div>
+    <div class="sub">TAP THE DISC TO RECEIVE THE TRANSMISSION</div>
+
+    <div class="disc" id="disc">
+      <span class="ripple r1"></span><span class="ripple r2"></span><span class="ripple r3"></span>
+      <span class="core" id="core">▶</span>
+    </div>
+
+    <div class="lamp" id="lamp"></div>
+    <div class="hint">DECODE THE <b>MORSE</b> · FIND THE CODE</div>
+
+    <button class="replay" id="replay">⟲ Replay</button>
+    <div class="loaderr hidden" id="loaderr"></div>
+
+    <div class="wave" id="wave"></div>
+  </div>`;
+
+  // decorative waveform bars
+  const wave=document.getElementById("wave");
+  for(let i=0;i<48;i++){ const b=document.createElement("i"); b.style.height=(6+Math.random()*40)+"px"; wave.appendChild(b); }
+
+  const audio = new Audio();
+  audio.preload = "auto";
+  audio.src = src;
+  audio.crossOrigin = "anonymous";
+
+  const disc=document.getElementById("disc");
+  const core=document.getElementById("core");
+  const lamp=document.getElementById("lamp");
+  const status=document.getElementById("status");
+  const loaderr=document.getElementById("loaderr");
+
+  // light the lamp roughly in time with the sound volume (visual aid for the dots/dashes)
+  let actx=null, analyser=null, dataArr=null, raf=null, srcNode=null;
+  function setupMeter(){
+    try{
+      actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+      if(actx.state==="suspended") actx.resume();
+      if(!srcNode){
+        srcNode = actx.createMediaElementSource(audio);
+        analyser = actx.createAnalyser(); analyser.fftSize=256;
+        dataArr = new Uint8Array(analyser.frequencyBinCount);
+        srcNode.connect(analyser); analyser.connect(actx.destination);
+      }
+    }catch(e){ /* if it fails we still play sound, just no lamp meter */ }
+  }
+  function meter(){
+    if(analyser){
+      analyser.getByteTimeDomainData(dataArr);
+      let peak=0; for(let i=0;i<dataArr.length;i++){ const v=Math.abs(dataArr[i]-128); if(v>peak) peak=v; }
+      lamp.classList.toggle("on", peak>18);
+    }
+    raf=requestAnimationFrame(meter);
+  }
+
+  function play(){
+    setupMeter();
+    audio.currentTime = 0;
+    const p = audio.play();
+    if(p && p.catch) p.catch(err=>{ loaderr.classList.remove("hidden"); loaderr.textContent="Tap the disc again to play the sound."; });
+  }
+
+  disc.onclick = play;
+  document.getElementById("replay").onclick = play;
+
+  audio.addEventListener("playing", ()=>{ disc.classList.add("playing"); core.textContent="❚❚"; status.textContent="◉ RECEIVING"; if(!raf) meter(); });
+  audio.addEventListener("pause",   ()=>{ disc.classList.remove("playing"); core.textContent="▶"; status.textContent="◍ READY"; });
+  audio.addEventListener("ended",   ()=>{ disc.classList.remove("playing"); core.textContent="▶"; status.textContent="✓ COMPLETE"; lamp.classList.remove("on"); });
+  audio.addEventListener("error",   ()=>{ loaderr.classList.remove("hidden"); loaderr.innerHTML=`Couldn't load <b>${esc(h.file)}</b>. Make sure it's uploaded to the repo next to index.html.`; });
+
+  // optional back button when used inline
+  if(typeof onBack==="function"){
+    const back=document.createElement("button");
+    back.className="backbtn"; back.textContent="‹ BACK";
+    back.style.cssText="position:absolute;top:14px;left:14px;z-index:5;background:#082430;border:1px solid #14506a;color:#eafcff;border-radius:8px;padding:8px 12px;font-size:12px;letter-spacing:2px;";
+    back.onclick=()=>{ try{audio.pause();}catch(e){} if(raf) cancelAnimationFrame(raf); onBack(); };
+    document.querySelector(".player").appendChild(back);
+    document.querySelector(".player .top").style.top="58px";
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Team names + passcodes: readable by the app, not writable from phones
+    match /teams/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
